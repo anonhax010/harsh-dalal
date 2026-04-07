@@ -706,6 +706,29 @@ export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
+    const checkNewUser = async () => {
+      const existingSerial = localStorage.getItem('user_serial');
+      if (!existingSerial) {
+        // Generate a random serial number
+        const newSerial = `SN-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+        localStorage.setItem('user_serial', newSerial);
+        
+        // Notify Telegram via backend
+        try {
+          await fetch('/api/notify-new-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ serialNumber: newSerial }),
+          });
+        } catch (error) {
+          console.error('Failed to notify new user:', error);
+        }
+      }
+    };
+    checkNewUser();
+  }, []);
+
+  useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
