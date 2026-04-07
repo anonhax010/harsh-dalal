@@ -19,7 +19,8 @@ import {
   CreditCard,
   Wallet,
   Sun,
-  Moon
+  Moon,
+  Share2
 } from 'lucide-react';
 
 // --- Types ---
@@ -100,6 +101,19 @@ const ALL_CARDS = generateCards();
 const NAMES = ['Mayank', 'Rahul', 'Priya', 'Anjali', 'Suresh', 'Deepak', 'Sneha', 'Amit', 'Vikram', 'Neha', 'Rohan', 'Kavita'];
 const CITIES = ['Delhi', 'Mumbai', 'Bangalore', 'Hyderabad', 'Pune', 'Chennai', 'Kolkata', 'Jaipur', 'Lucknow', 'Ahmedabad'];
 
+const GOOGLE_PLAY_CODES = [
+  'GPLY-8X9K-J2M4-L7P1',
+  'GPLY-QW5E-R9T0-Y1U2',
+  'GPLY-A4S6-D8F0-G2H4',
+  'GPLY-Z1X3-C5V7-B9N0',
+  'GPLY-M2N4-B6V8-C0X1',
+  'GPLY-L9K7-J5H3-G1F2',
+  'GPLY-P0O9-I8U7-Y6T5',
+  'GPLY-R4E3-W2Q1-A0S9',
+  'GPLY-K8J7-H6G5-F4D3',
+  'GPLY-V9B8-N7M6-L5K4'
+];
+
 // --- Components ---
 
 const TrustNotification = () => {
@@ -122,7 +136,7 @@ const TrustNotification = () => {
       setTimeout(() => setNotification(null), 4000);
     };
 
-    const interval = setInterval(showNext, 8000);
+    const interval = setInterval(showNext, 10000);
     showNext();
 
     return () => clearInterval(interval);
@@ -255,6 +269,10 @@ const PurchaseModal = ({ card, onClose }: { card: GiftCard; onClose: () => void 
                     </div>
                   </div>
                 </div>
+                <div className="text-center">
+                  <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">UPI ID</p>
+                  <p className="text-sm font-mono font-bold text-indigo-600 dark:text-indigo-400">mayankpluxary@fam</p>
+                </div>
                 <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium text-center">
                   Scan the QR code above to pay using any UPI app.<br/>
                   Do not close this window after payment.
@@ -303,12 +321,137 @@ const PurchaseModal = ({ card, onClose }: { card: GiftCard; onClose: () => void 
   );
 };
 
+const ReferralModal = ({ onClose }: { onClose: () => void }) => {
+  const [shareCount, setShareCount] = useState(() => {
+    const saved = localStorage.getItem('referral_shares');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+  const [claimedCode, setClaimedCode] = useState<string | null>(null);
+
+  const handleShare = async () => {
+    const shareData = {
+      title: 'PROZONE GC - Get Free Gift Cards',
+      text: 'Get 50% discount on all gift cards at PROZONE GC! Use my referral to get a free Google Play code.',
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        updateShareCount();
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        alert('Link copied to clipboard! Share it with 5 friends.');
+        updateShareCount();
+      }
+    } catch (err) {
+      console.error('Error sharing:', err);
+    }
+  };
+
+  const updateShareCount = () => {
+    const newCount = shareCount + 1;
+    setShareCount(newCount);
+    localStorage.setItem('referral_shares', newCount.toString());
+  };
+
+  const handleClaim = () => {
+    const randomCode = GOOGLE_PLAY_CODES[Math.floor(Math.random() * GOOGLE_PLAY_CODES.length)];
+    setClaimedCode(randomCode);
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+    >
+      <motion.div 
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden relative p-8"
+      >
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors z-10 dark:text-white"
+        >
+          <X size={20} />
+        </button>
+
+        <div className="text-center space-y-6">
+          <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto">
+            <Gift size={40} />
+          </div>
+          
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Free Google Play Code</h2>
+            <p className="text-gray-600 dark:text-gray-400">Share this website with 5 friends to unlock a random Google Play redeem code!</p>
+          </div>
+
+          {!claimedCode ? (
+            <div className="space-y-4">
+              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Progress</span>
+                  <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{shareCount}/5 Shares</span>
+                </div>
+                <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min((shareCount / 5) * 100, 100)}%` }}
+                    className="h-full bg-indigo-600"
+                  />
+                </div>
+              </div>
+
+              {shareCount >= 5 ? (
+                <button 
+                  onClick={handleClaim}
+                  className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 dark:shadow-none flex items-center justify-center gap-2"
+                >
+                  <Zap size={20} /> Claim My Code
+                </button>
+              ) : (
+                <button 
+                  onClick={handleShare}
+                  className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 dark:shadow-none flex items-center justify-center gap-2"
+                >
+                  <Share2 size={20} /> Share Now
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="p-6 bg-emerald-50 dark:bg-emerald-900/10 border-2 border-dashed border-emerald-200 dark:border-emerald-800 rounded-2xl">
+                <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-2">Your Redeem Code</p>
+                <p className="text-2xl font-mono font-black text-gray-900 dark:text-white tracking-tighter">{claimedCode}</p>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Copy this code and redeem it in the Google Play Store.</p>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(claimedCode);
+                  alert('Code copied!');
+                }}
+                className="w-full py-3 bg-gray-900 dark:bg-white dark:text-gray-900 text-white rounded-xl font-bold hover:opacity-90 transition-all"
+              >
+                Copy Code
+              </button>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 export default function App() {
   const [selectedCard, setSelectedCard] = useState<GiftCard | null>(null);
   const [activeView, setActiveView] = useState<'home' | 'brand' | 'track' | 'reviews' | 'my-codes'>('home');
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [closingTime, setClosingTime] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [showReferral, setShowReferral] = useState(false);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -362,7 +505,29 @@ export default function App() {
             onClose={() => setSelectedCard(null)} 
           />
         )}
+        {showReferral && (
+          <ReferralModal onClose={() => setShowReferral(false)} />
+        )}
       </AnimatePresence>
+
+      {/* Floating Referral Button */}
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={() => setShowReferral(true)}
+        className="fixed bottom-24 right-6 z-50 w-14 h-14 bg-emerald-600 text-white rounded-full shadow-2xl flex items-center justify-center group overflow-hidden"
+      >
+        <motion.div
+          animate={{ 
+            rotate: [0, -10, 10, -10, 10, 0],
+            scale: [1, 1.1, 1, 1.1, 1]
+          }}
+          transition={{ repeat: Infinity, duration: 3 }}
+        >
+          <Gift size={24} />
+        </motion.div>
+        <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+      </motion.button>
 
       {/* Navbar */}
       <nav className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
@@ -375,6 +540,12 @@ export default function App() {
           </div>
           
           <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setShowReferral(true)}
+              className="hidden md:flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 dark:shadow-none"
+            >
+              <Gift size={16} /> Free Code
+            </button>
             <button 
               onClick={() => setIsDarkMode(!isDarkMode)}
               className="p-2 text-gray-500 hover:text-indigo-600 transition-colors dark:text-gray-400 dark:hover:text-indigo-400"
