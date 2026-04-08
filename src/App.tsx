@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Component, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ShoppingBag, 
@@ -20,8 +20,55 @@ import {
   Wallet,
   Sun,
   Moon,
-  Share2
+  Share2,
+  LogIn,
+  LogOut,
+  User as UserIcon
 } from 'lucide-react';
+import { auth, db, loginWithGoogle, logout } from './firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { doc, onSnapshot, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+
+// --- Error Boundary ---
+class ErrorBoundary extends (Component as any) {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("ErrorBoundary caught an error", error, errorInfo);
+  }
+
+  render() {
+    if ((this as any).state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-6">
+          <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-3xl p-8 shadow-2xl border border-gray-100 dark:border-gray-800 text-center">
+            <div className="w-16 h-16 bg-rose-100 dark:bg-rose-900/30 rounded-full flex items-center justify-center text-rose-600 dark:text-rose-400 mx-auto mb-6">
+              <X size={32} />
+            </div>
+            <h1 className="text-2xl font-black text-gray-900 dark:text-white mb-4">Something went wrong</h1>
+            <p className="text-gray-600 dark:text-gray-400 mb-8 text-sm">
+              We encountered an error. This might be due to a missing Firebase configuration.
+            </p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all"
+            >
+              Reload Application
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return (this as any).props.children;
+  }
+}
 
 // --- Types ---
 interface GiftCard {
@@ -47,35 +94,35 @@ const BRANDS = [
     color: 'bg-orange-600', 
     hoverColor: 'hover:bg-orange-700', 
     textColor: 'text-orange-600', 
-    icon: <ShoppingBag size={24} />,
+    icon: <img src="https://upload.wikimedia.org/wikipedia/commons/4/4a/Amazon_icon.svg" alt="Amazon" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />,
   },
   { 
     name: 'Flipkart', 
     color: 'bg-blue-600', 
     hoverColor: 'hover:bg-blue-700', 
     textColor: 'text-blue-600', 
-    icon: <ShoppingBag size={24} />,
+    icon: <img src="https://static-assets-web.flixcart.com/www/linchpin/fk-cp-zion/img/apple-touch-icon-57x57_b61ef3.png" alt="Flipkart" className="w-6 h-6 object-contain rounded-sm" referrerPolicy="no-referrer" />,
   },
   { 
     name: 'Google Play', 
-    color: 'bg-emerald-600', // Changed to emerald for better look
+    color: 'bg-emerald-600', 
     hoverColor: 'hover:bg-emerald-700', 
     textColor: 'text-emerald-600', 
-    icon: <Smartphone size={24} />,
+    icon: <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/Google_Play_Arrow_logo.svg" alt="Google Play" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />,
   },
   { 
     name: 'Zomato', 
     color: 'bg-rose-600', 
     hoverColor: 'hover:bg-rose-700', 
     textColor: 'text-rose-600', 
-    icon: <Gift size={24} />,
+    icon: <img src="https://upload.wikimedia.org/wikipedia/commons/b/bd/Zomato_logo.png" alt="Zomato" className="w-8 h-8 object-contain brightness-0 invert" referrerPolicy="no-referrer" />,
   },
   { 
     name: 'Swiggy', 
     color: 'bg-orange-500', 
     hoverColor: 'hover:bg-orange-600', 
     textColor: 'text-orange-500', 
-    icon: <Gift size={24} />, // Distinct icon from Amazon
+    icon: <img src="https://upload.wikimedia.org/wikipedia/commons/1/13/Swiggy_logo.png" alt="Swiggy" className="w-8 h-8 object-contain brightness-0 invert" referrerPolicy="no-referrer" />,
   },
 ];
 
@@ -534,15 +581,37 @@ const PurchaseModal = ({ card, onClose }: { card: GiftCard; onClose: () => void 
   );
 };
 
-const ReferralSection = () => {
-  const [shareCount, setShareCount] = useState(() => {
-    const saved = localStorage.getItem('referral_shares');
-    return saved ? parseInt(saved, 10) : 0;
-  });
-  const [claimedCodes, setClaimedCodes] = useState<{ [key: number]: string }>(() => {
-    const saved = localStorage.getItem('claimed_referral_codes');
-    return saved ? JSON.parse(saved) : {};
-  });
+const ReferralSection = ({ user }: { user: User | null }) => {
+  const [shareCount, setShareCount] = useState(0);
+  const [claimedCodes, setClaimedCodes] = useState<{ [key: number]: string }>({});
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const unsub = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setShareCount(data.shareCount || 0);
+        setClaimedCodes(data.claimedCodes || {});
+      } else {
+        // Initialize user doc
+        setDoc(doc(db, 'users', user.uid), {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          shareCount: 0,
+          claimedCodes: {},
+          createdAt: serverTimestamp()
+        });
+      }
+    }, (error) => {
+      console.error("Firestore Error (ReferralSection):", error);
+    });
+
+    return () => unsub();
+  }, [user]);
 
   const tiers = [
     { count: 5, reward: '10rs', codes: GOOGLE_PLAY_CODES_10 },
@@ -551,6 +620,11 @@ const ReferralSection = () => {
   ];
 
   const handleShare = async () => {
+    if (!user) {
+      alert("Please login to participate in the referral program!");
+      return;
+    }
+
     const shareData = {
       title: 'PROZONE GC - Get Free Gift Cards',
       text: 'Get 50% discount on all gift cards at PROZONE GC! Use my referral to get free Google Play codes.',
@@ -571,19 +645,32 @@ const ReferralSection = () => {
     }
   };
 
-  const updateShareCount = () => {
-    const newCount = shareCount + 1;
-    setShareCount(newCount);
-    localStorage.setItem('referral_shares', newCount.toString());
+  const updateShareCount = async () => {
+    if (!user) return;
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        shareCount: shareCount + 1
+      });
+    } catch (error) {
+      console.error("Error updating share count:", error);
+    }
   };
 
-  const handleClaim = (tier: typeof tiers[0]) => {
-    if (claimedCodes[tier.count]) return;
+  const handleClaim = async (tier: typeof tiers[0]) => {
+    if (!user || claimedCodes[tier.count]) return;
     
-    const randomCode = tier.codes[Math.floor(Math.random() * tier.codes.length)];
-    const newClaimed = { ...claimedCodes, [tier.count]: randomCode };
-    setClaimedCodes(newClaimed);
-    localStorage.setItem('claimed_referral_codes', JSON.stringify(newClaimed));
+    try {
+      const randomCode = tier.codes[Math.floor(Math.random() * tier.codes.length)];
+      const newClaimed = { ...claimedCodes, [tier.count]: randomCode };
+      
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        claimedCodes: newClaimed
+      });
+    } catch (error) {
+      console.error("Error claiming reward:", error);
+    }
   };
 
   return (
@@ -695,12 +782,22 @@ const ReferralSection = () => {
   );
 };
 
-export default function App() {
+function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [selectedCard, setSelectedCard] = useState<GiftCard | null>(null);
   const [activeView, setActiveView] = useState<'home' | 'brand' | 'track' | 'reviews' | 'my-codes'>('home');
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [closingTime, setClosingTime] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setIsAuthLoading(false);
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     const checkNewUser = async () => {
@@ -812,15 +909,31 @@ export default function App() {
           </div>
           
           <div className="flex items-center gap-4">
-            <button 
-              onClick={() => {
-                const el = document.getElementById('referral');
-                el?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="hidden md:flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 dark:shadow-none"
-            >
-              <Gift size={16} /> Free Code
-            </button>
+            {user ? (
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex flex-col items-end">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Welcome</span>
+                  <span className="text-xs font-bold text-gray-900 dark:text-white">{user.displayName}</span>
+                </div>
+                <button 
+                  onClick={logout}
+                  className="p-2 text-gray-500 hover:text-rose-600 transition-colors dark:text-gray-400 dark:hover:text-rose-400"
+                  title="Logout"
+                >
+                  <LogOut size={20} />
+                </button>
+                <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-indigo-100 dark:border-indigo-900">
+                  <img src={user.photoURL || ''} alt="User" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                </div>
+              </div>
+            ) : (
+              <button 
+                onClick={loginWithGoogle}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 dark:shadow-none"
+              >
+                <LogIn size={16} /> Login
+              </button>
+            )}
             <button 
               onClick={() => setIsDarkMode(!isDarkMode)}
               className="p-2 text-gray-500 hover:text-indigo-600 transition-colors dark:text-gray-400 dark:hover:text-indigo-400"
@@ -949,7 +1062,7 @@ export default function App() {
 
             {/* Referral Section */}
             <div id="referral">
-              <ReferralSection />
+              <ReferralSection user={user} />
             </div>
           </main>
         </motion.div>
@@ -1177,5 +1290,13 @@ export default function App() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function Root() {
+  return (
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   );
 }
