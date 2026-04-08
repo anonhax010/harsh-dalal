@@ -689,9 +689,6 @@ const ReferralSection = () => {
             <Share2 size={24} className="group-hover:rotate-12 transition-transform" />
             SHARE & EARN NOW
           </button>
-          <p className="text-indigo-100 text-sm font-medium">
-            * Rewards are given as random redeem codes.
-          </p>
         </div>
       </div>
     </section>
